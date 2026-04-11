@@ -1,1 +1,3 @@
 com\mycompany\capitalist_phungloccoffee\Capitalist_PhungLocCoffee.class
+repository\OrderRepository.class
+utils\DatabaseHelper.class
