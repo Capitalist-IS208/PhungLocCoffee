@@ -1,0 +1,13 @@
+# Bỏ qua thư mục build của Visual Studio
+[Bb]in/
+[Oo]bj/
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Bỏ qua các file tạm
+*.log
+*.tmp
+*.bak

@@ -1,0 +1,27 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<OutputType>WinExe</OutputType>
+		<TargetFramework>net8.0-windows</TargetFramework>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<UseWPF>true</UseWPF>
+
+		<NoWarn>NU1701</NoWarn>
+
+		<AssemblyName>PhungLocCoffee_POS</AssemblyName>
+		<RootNamespace>PhungLocCoffee_POS</RootNamespace>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="LiveCharts.Wpf" Version="0.9.7" />
+		<PackageReference Include="MahApps.Metro.IconPacks.Material" Version="6.2.1" />
+		<PackageReference Include="MaterialDesignThemes" Version="4.9.0" />
+		<PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.1" />
+		<PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.8" />
+		<PackageReference Include="System.Configuration.ConfigurationManager" Version="10.0.8" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Resource Include="icons\*.png" />
+	</ItemGroup>
+</Project>
