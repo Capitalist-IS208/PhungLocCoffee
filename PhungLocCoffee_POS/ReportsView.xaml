@@ -27,17 +27,9 @@
                     </Border.Effect>
                     <StackPanel Orientation="Horizontal">
                         <icon:PackIconMaterial Kind="CalendarRange" Foreground="#D7A16A" VerticalAlignment="Center" Width="18" Height="18"/>
-                        <ComboBox x:Name="cboTimeFilter"
-                          SelectedIndex="2"
-                          SelectionChanged="CboTimeFilter_SelectionChanged"
-                          Background="Transparent"
-                          BorderThickness="0"
-                          Foreground="#2D3748"
-                          FontWeight="Bold"
-                          FontSize="13"
-                          VerticalAlignment="Center"
-                          Margin="10,0,0,0"
-                          Width="180">
+                        <ComboBox x:Name="cboTimeFilter" SelectedIndex="2" SelectionChanged="CboTimeFilter_SelectionChanged"
+                                  Background="Transparent" BorderThickness="0" Foreground="#2D3748"
+                                  FontWeight="Bold" FontSize="13" VerticalAlignment="Center" Margin="10,0,0,0" Width="180">
                             <ComboBoxItem Content="Hôm nay"/>
                             <ComboBoxItem Content="7 ngày qua"/>
                             <ComboBoxItem Content="Tháng này"/>
@@ -54,26 +46,32 @@
                     </Border.Effect>
                     <StackPanel Orientation="Horizontal">
                         <icon:PackIconMaterial Kind="StorefrontOutline" Foreground="#A0AEC0" VerticalAlignment="Center" Width="18" Height="18"/>
-                        <ComboBox x:Name="cboBranchFilter"
-                          SelectionChanged="CboBranchFilter_SelectionChanged"
-                          Background="Transparent"
-                          BorderThickness="0"
-                          Foreground="#4A5568"
-                          FontWeight="Bold"
-                          FontSize="13"
-                          VerticalAlignment="Center"
-                          Margin="10,0,0,0"
-                          Width="160"/>
+                        <ComboBox x:Name="cboBranchFilter" SelectionChanged="CboBranchFilter_SelectionChanged"
+                                  Background="Transparent" BorderThickness="0" Foreground="#4A5568"
+                                  FontWeight="Bold" FontSize="13" VerticalAlignment="Center" Margin="10,0,0,0" Width="160"/>
                     </StackPanel>
                 </Border>
             </StackPanel>
 
-            <Button HorizontalAlignment="Right" Height="45" Background="#48BB78" BorderThickness="0" Foreground="White" FontWeight="Bold" FontSize="13" md:ButtonAssist.CornerRadius="12" Cursor="Hand" Padding="20,0" Click="BtnRefresh_Click">
-                <StackPanel Orientation="Horizontal">
-                    <icon:PackIconMaterial Kind="Refresh" Foreground="White" Width="18" Height="18" VerticalAlignment="Center"/>
-                    <TextBlock Text="LÀM MỚI DỮ LIỆU" Margin="8,0,0,0" VerticalAlignment="Center"/>
-                </StackPanel>
-            </Button>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Height="45" Background="#48BB78" BorderThickness="0" Foreground="White" 
+                        FontWeight="Bold" FontSize="13" md:ButtonAssist.CornerRadius="12" 
+                        Cursor="Hand" Padding="20,0" Click="BtnRefresh_Click">
+                    <StackPanel Orientation="Horizontal">
+                        <icon:PackIconMaterial Kind="Refresh" Foreground="White" Width="18" Height="18" VerticalAlignment="Center"/>
+                        <TextBlock Text="LÀM MỚI" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+
+                <Button Height="45" Background="#4299E1" BorderThickness="0" Foreground="White" 
+                        FontWeight="Bold" FontSize="13" md:ButtonAssist.CornerRadius="12" 
+                        Cursor="Hand" Padding="20,0" Margin="10,0,0,0" Click="BtnExportPdf_Click">
+                    <StackPanel Orientation="Horizontal">
+                        <icon:PackIconMaterial Kind="FilePdfBox" Foreground="White" Width="18" Height="18" VerticalAlignment="Center"/>
+                        <TextBlock Text="XUẤT PDF" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+            </StackPanel>
         </Grid>
 
         <Grid Grid.Row="1">

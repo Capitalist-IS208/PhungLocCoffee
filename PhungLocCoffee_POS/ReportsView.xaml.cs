@@ -290,6 +290,13 @@ namespace PhungLocCoffee_POS
             }
         }
 
+        private void BtnExportPdf_Click(object sender, RoutedEventArgs e)
+        {
+            // 1. Kiểm tra dữ liệu xem đã tải xong chưa
+            // 2. Sử dụng thư viện QuestPDF (đã có trong README của bạn) để vẽ report
+            // 3. Mở SaveFileDialog để lưu file
+            MessageBox.Show("Tính năng xuất PDF đang được phát triển.", "Thông báo");
+        }
         private void LoadBranchesFilterFromDatabase()
         {
             try
