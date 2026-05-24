@@ -134,13 +134,31 @@
                         </StackPanel>
                     </Border>
 
+        
+                    <Border x:Name="btnBOM" Background="Transparent" CornerRadius="18" Margin="10,5" Padding="0,15" Cursor="Hand" 
+                            MouseLeftButtonUp="MenuBOM_Click">
+                        <StackPanel>
+                            <icon:PackIconMaterial x:Name="iconBOM" Kind="TextBoxOutline" HorizontalAlignment="Center" Width="26" Height="26" Foreground="#A0AEC0"/>
+                            <TextBlock x:Name="txtBOM" Text="CÔNG THỨC" FontSize="11" Margin="0,8,0,0" FontWeight="Bold" Foreground="#718096" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border x:Name="btnSuppliers" Background="Transparent" CornerRadius="18" Margin="10,5" Padding="0,15" Cursor="Hand" 
+        MouseLeftButtonUp="MenuSuppliers_Click">
+                        <StackPanel>
+                            <icon:PackIconMaterial x:Name="iconSuppliers" Kind="TruckOutline" HorizontalAlignment="Center" Width="26" Height="26" Foreground="#A0AEC0"/>
+                            <TextBlock x:Name="txtSuppliers" Text="NHÀ CUNG CẤP" FontSize="11" Margin="0,8,0,0" FontWeight="Bold" Foreground="#718096" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+
                     <Border x:Name="btnReports" Background="Transparent" CornerRadius="18" Margin="10,5" Padding="0,15" Cursor="Hand" 
-                            MouseLeftButtonUp="MenuReports_Click">
+                    MouseLeftButtonUp="MenuReports_Click">
                         <StackPanel>
                             <icon:PackIconMaterial x:Name="iconReports" Kind="ChartBar" HorizontalAlignment="Center" Width="26" Height="26" Foreground="#A0AEC0"/>
                             <TextBlock x:Name="txtReports" Text="BÁO CÁO" FontSize="11" Margin="0,8,0,0" FontWeight="Bold" Foreground="#718096" HorizontalAlignment="Center"/>
                         </StackPanel>
                     </Border>
+
                 </StackPanel>
             </ScrollViewer>
         </Border>

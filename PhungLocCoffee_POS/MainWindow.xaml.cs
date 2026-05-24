@@ -83,16 +83,17 @@ namespace PhungLocCoffee_POS
             btnSales.Visibility = Visibility.Visible;
             btnInventory.Visibility = Visibility.Visible;
             btnReports.Visibility = Visibility.Visible;
+            btnBOM.Visibility = Visibility.Visible; // Hiển thị nút BOM
 
             if (_currentUser.IsAdmin || _currentUser.IsManager)
             {
-                return;
+                return; // Admin và Quản lý thấy hết
             }
 
             if (_currentUser.IsStaff)
             {
-                // Staff vẫn được xem Kho và Báo cáo chi nhánh.
-                // Nhưng trong InventoryView sẽ chặn Kiểm kho / Nhập xuất.
+                // Staff không được quyền vào xem / chỉnh sửa CÔNG THỨC (BOM)
+                btnBOM.Visibility = Visibility.Collapsed;
                 return;
             }
 
@@ -100,6 +101,7 @@ namespace PhungLocCoffee_POS
             {
                 btnSales.Visibility = Visibility.Collapsed;
                 btnReports.Visibility = Visibility.Collapsed;
+                btnBOM.Visibility = Visibility.Collapsed; // Thủ kho cũng không sửa công thức
                 return;
             }
         }
@@ -185,6 +187,22 @@ namespace PhungLocCoffee_POS
             btnReports.Background = brushTransparent;
             iconReports.Foreground = brushIconGray;
             txtReports.Foreground = brushTextGray;
+
+            // Reset màu cho nút BOM
+            if (btnBOM != null)
+            {
+                btnBOM.Background = brushTransparent;
+                iconBOM.Foreground = brushIconGray;
+                txtBOM.Foreground = brushTextGray;
+            }
+
+            // THÊM MỚI: Reset màu cho nút Nhà Cung Cấp
+            if (btnSuppliers != null)
+            {
+                btnSuppliers.Background = brushTransparent;
+                iconSuppliers.Foreground = brushIconGray;
+                txtSuppliers.Foreground = brushTextGray;
+            }
         }
 
         private void SetActiveMenu(Border btn,
@@ -208,6 +226,14 @@ namespace PhungLocCoffee_POS
             MainContent.Children.Add(new HomeView(_currentUser));
         }
 
+        private void MenuBOM_Click(object sender, MouseButtonEventArgs e)
+        {
+            // Set active cho BOM
+            SetActiveMenu(btnBOM, iconBOM, txtBOM);
+            MainContent.Children.Clear();
+            MainContent.Children.Add(new BOMView());
+        }
+
         private void MenuSales_Click(object sender, MouseButtonEventArgs e)
         {
             if (_currentUser.IsInventoryKeeper)
@@ -217,6 +243,26 @@ namespace PhungLocCoffee_POS
             MainContent.Children.Clear();
             MainContent.Children.Add(new SalesView(_currentUser));
         }
+
+        private void MenuSuppliers_Click(object sender, MouseButtonEventArgs e)
+        {
+            // Nếu bạn muốn hạn chế quyền (ví dụ chỉ Admin/Quản lý mới xem được NCC)
+            // thì uncomment dòng dưới, nếu không thì cứ để trống
+            // if (_currentUser.IsInventoryKeeper) return;
+
+            // 1. Cập nhật trạng thái menu (đổi màu icon/text của nút được chọn)
+            SetActiveMenu(btnSuppliers, iconSuppliers, txtSuppliers);
+
+            // 2. Xóa nội dung cũ trong màn hình chính
+            MainContent.Children.Clear();
+
+            // 3. Nạp màn hình quản lý nhà cung cấp
+            // Giả sử constructor của SuppliersView nhận _currentUser giống các View khác
+            MainContent.Children.Add(new SuppliersView(_currentUser));
+        }
+
+
+
 
         private void MenuInventory_Click(object sender, MouseButtonEventArgs e)
         {

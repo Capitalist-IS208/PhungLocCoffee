@@ -287,12 +287,12 @@ namespace PhungLocCoffee_POS
                         }
                     }
 
+                    // ========== ĐÃ SỬA: XÓA CustomerId VÀ NULL ==========
                     string orderQuery = @"
                     INSERT INTO Orders
                     (
                         BranchID,
                         UserID,
-                        CustomerID,
                         TotalAmount,
                         DiscountAmount,
                         PaymentMethod,
@@ -304,7 +304,6 @@ namespace PhungLocCoffee_POS
                     (
                         @BranchID,
                         @UserID,
-                        NULL,
                         @TotalAmount,
                         0,
                         @PaymentMethod,
@@ -552,37 +551,37 @@ namespace PhungLocCoffee_POS
 
                     string categoryQuery = "SELECT * FROM Categories";
 
-                using (SqlCommand cmd = new SqlCommand(categoryQuery, conn))
-                using (SqlDataReader reader = cmd.ExecuteReader())
-                {
-                    while (reader.Read())
+                    using (SqlCommand cmd = new SqlCommand(categoryQuery, conn))
+                    using (SqlDataReader reader = cmd.ExecuteReader())
                     {
-                        Categories.Add(new CategoryItem
+                        while (reader.Read())
                         {
-                            Id = Convert.ToInt32(reader["CategoryID"]),
-                            Name = reader["CategoryName"].ToString() ?? "",
-                            IsSelected = Categories.Count == 0
-                        });
+                            Categories.Add(new CategoryItem
+                            {
+                                Id = Convert.ToInt32(reader["CategoryID"]),
+                                Name = reader["CategoryName"].ToString() ?? "",
+                                IsSelected = Categories.Count == 0
+                            });
+                        }
                     }
-                }
 
 
-                string productQuery = "SELECT * FROM Products WHERE IsActive = 1";
+                    string productQuery = "SELECT * FROM Products WHERE IsActive = 1";
 
-                using (SqlCommand cmd = new SqlCommand(productQuery, conn))
-                using (SqlDataReader reader = cmd.ExecuteReader())
-                {
-                    while (reader.Read())
+                    using (SqlCommand cmd = new SqlCommand(productQuery, conn))
+                    using (SqlDataReader reader = cmd.ExecuteReader())
                     {
-                        Products.Add(new ProductItem
+                        while (reader.Read())
                         {
-                            Id = Convert.ToInt32(reader["ProductID"]),
-                            Name = reader["ProductName"].ToString() ?? "",
-                            Price = Convert.ToDouble(reader["Price"]),
-                            IsOutOfStock = false
-                        });
+                            Products.Add(new ProductItem
+                            {
+                                Id = Convert.ToInt32(reader["ProductID"]),
+                                Name = reader["ProductName"].ToString() ?? "",
+                                Price = Convert.ToDouble(reader["Price"]),
+                                IsOutOfStock = false
+                            });
+                        }
                     }
-                }
                     CacheProductsToLocal();
                 }
             }
@@ -766,10 +765,7 @@ namespace PhungLocCoffee_POS
             {
                 sqliteConn.Open();
 
-                string getOrdersSql = @"
-                SELECT *
-                FROM LocalOrders
-                WHERE IsSynced = 0";
+                string getOrdersSql = "SELECT * FROM LocalOrders WHERE IsSynced = 0";
 
                 using (var cmd = new SqliteCommand(getOrdersSql, sqliteConn))
                 using (var reader = cmd.ExecuteReader())
@@ -780,138 +776,88 @@ namespace PhungLocCoffee_POS
 
                         try
                         {
-                            using (SqlConnection sqlConn =
-                                new SqlConnection(ConfigurationManager.ConnectionStrings["DefaultConnection"].ConnectionString))
+                            using (SqlConnection sqlConn = new SqlConnection(ConfigurationManager.ConnectionStrings["DefaultConnection"].ConnectionString))
                             {
                                 sqlConn.Open();
 
                                 string insertSql = @"
-                                INSERT INTO Orders
-                                (
-                                    BranchID,
-                                    UserID,
-                                    CustomerID,
-                                    TotalAmount,
-                                    DiscountAmount,
-                                    PaymentMethod,
-                                    CreatedAt,
-                                    OfflineID,
-                                    IsSynced
-                                )
-                                VALUES
-                                (
-                                    @BranchID,
-                                    @UserID,
-                                    NULL,
-                                    @TotalAmount,
-                                    0,
-                                    @PaymentMethod,
-                                    @CreatedAt,
-                                    @OfflineID,
-                                    1
-                                );
-
-                                SELECT SCOPE_IDENTITY();";
+                            INSERT INTO Orders (BranchID, UserID, TotalAmount, DiscountAmount, PaymentMethod, CreatedAt, OfflineID, IsSynced)
+                            VALUES (@BranchID, @UserID, @TotalAmount, @DiscountAmount, @PaymentMethod, @CreatedAt, @OfflineID, 1);
+                            SELECT SCOPE_IDENTITY();";
 
                                 int newOrderId;
 
                                 using (SqlCommand insertCmd = new SqlCommand(insertSql, sqlConn))
                                 {
-                                    insertCmd.Parameters.AddWithValue("@BranchID", Convert.ToInt32(reader["BranchID"]));
-                                    insertCmd.Parameters.AddWithValue("@UserID", Convert.ToInt32(reader["UserID"]));
-                                    insertCmd.Parameters.AddWithValue("@TotalAmount", Convert.ToDouble(reader["TotalAmount"]));
-                                    insertCmd.Parameters.AddWithValue("@PaymentMethod", reader["PaymentMethod"].ToString() ?? "");
-                                    insertCmd.Parameters.AddWithValue("@CreatedAt", reader["CreatedAt"].ToString() ?? "");
+                                    // Kiểm tra DBNull an toàn cho từng trường
+                                    insertCmd.Parameters.AddWithValue("@BranchID", reader["BranchID"] != DBNull.Value ? Convert.ToInt32(reader["BranchID"]) : 0);
+                                    insertCmd.Parameters.AddWithValue("@UserID", reader["UserID"] != DBNull.Value ? Convert.ToInt32(reader["UserID"]) : 0);
+                                    insertCmd.Parameters.AddWithValue("@TotalAmount", reader["TotalAmount"] != DBNull.Value ? Convert.ToDouble(reader["TotalAmount"]) : 0.0);
+                                    insertCmd.Parameters.AddWithValue("@DiscountAmount", reader["DiscountAmount"] != DBNull.Value ? Convert.ToDouble(reader["DiscountAmount"]) : 0.0);
+                                    insertCmd.Parameters.AddWithValue("@PaymentMethod", reader["PaymentMethod"]?.ToString() ?? "");
+                                    insertCmd.Parameters.AddWithValue("@CreatedAt", reader["CreatedAt"]?.ToString() ?? DateTime.Now.ToString());
                                     insertCmd.Parameters.AddWithValue("@OfflineID", localOrderId);
 
                                     newOrderId = Convert.ToInt32(insertCmd.ExecuteScalar());
                                 }
 
-                                string getDetailsSql = @"
-                                SELECT ProductID, Quantity, UnitPrice
-                                FROM LocalOrderDetails
-                                WHERE LocalOrderID = @LocalOrderID";
-
+                                // Sync Chi tiết đơn hàng
+                                string getDetailsSql = "SELECT ProductID, Quantity, UnitPrice FROM LocalOrderDetails WHERE LocalOrderID = @LocalOrderID";
                                 using (SqliteCommand detailCmd = new SqliteCommand(getDetailsSql, sqliteConn))
                                 {
                                     detailCmd.Parameters.AddWithValue("@LocalOrderID", localOrderId);
-
                                     using (SqliteDataReader detailReader = detailCmd.ExecuteReader())
                                     {
                                         while (detailReader.Read())
                                         {
                                             string insertDetailSql = @"
-                                            INSERT INTO OrderDetails
-                                            (
-                                                OrderID,
-                                                ProductID,
-                                                Quantity,
-                                                UnitPrice
-                                            )
-                                            VALUES
-                                            (
-                                                @OrderID,
-                                                @ProductID,
-                                                @Quantity,
-                                                @UnitPrice
-                                            )";
+                                        INSERT INTO OrderDetails (OrderID, ProductID, Quantity, UnitPrice)
+                                        VALUES (@OrderID, @ProductID, @Quantity, @UnitPrice)";
 
                                             using (SqlCommand insertDetailCmd = new SqlCommand(insertDetailSql, sqlConn))
                                             {
                                                 insertDetailCmd.Parameters.AddWithValue("@OrderID", newOrderId);
-                                                insertDetailCmd.Parameters.AddWithValue("@ProductID", Convert.ToInt32(detailReader["ProductID"]));
-                                                insertDetailCmd.Parameters.AddWithValue("@Quantity", Convert.ToInt32(detailReader["Quantity"]));
-                                                insertDetailCmd.Parameters.AddWithValue("@UnitPrice", Convert.ToDouble(detailReader["UnitPrice"]));
+                                                insertDetailCmd.Parameters.AddWithValue("@ProductID", detailReader["ProductID"] != DBNull.Value ? Convert.ToInt32(detailReader["ProductID"]) : 0);
+                                                insertDetailCmd.Parameters.AddWithValue("@Quantity", detailReader["Quantity"] != DBNull.Value ? Convert.ToInt32(detailReader["Quantity"]) : 0);
+                                                insertDetailCmd.Parameters.AddWithValue("@UnitPrice", detailReader["UnitPrice"] != DBNull.Value ? Convert.ToDouble(detailReader["UnitPrice"]) : 0.0);
 
                                                 insertDetailCmd.ExecuteNonQuery();
 
+                                                // Cập nhật kho
                                                 string updateInventorySql = @"
-                                                UPDATE i
-                                                SET i.CurrentQuantity = i.CurrentQuantity - (r.Quantity * @SoldQuantity)
-                                                FROM Inventory i
-                                                INNER JOIN Recipes r 
-                                                    ON i.IngredientID = r.IngredientID
-                                                WHERE i.BranchID = @BranchID
-                                                AND r.ProductID = @ProductID";
+                                            UPDATE i SET i.CurrentQuantity = i.CurrentQuantity - (r.Quantity * @SoldQuantity)
+                                            FROM Inventory i
+                                            INNER JOIN Recipes r ON i.IngredientID = r.IngredientID
+                                            WHERE i.BranchID = @BranchID AND r.ProductID = @ProductID";
 
                                                 using (SqlCommand updateInventoryCmd = new SqlCommand(updateInventorySql, sqlConn))
                                                 {
                                                     updateInventoryCmd.Parameters.AddWithValue("@SoldQuantity", Convert.ToInt32(detailReader["Quantity"]));
                                                     updateInventoryCmd.Parameters.AddWithValue("@BranchID", Convert.ToInt32(reader["BranchID"]));
                                                     updateInventoryCmd.Parameters.AddWithValue("@ProductID", Convert.ToInt32(detailReader["ProductID"]));
-
                                                     updateInventoryCmd.ExecuteNonQuery();
                                                 }
                                             }
                                         }
                                     }
                                 }
-                            }
 
-                            string updateSql = @"
-                            UPDATE LocalOrders
-                            SET IsSynced = 1
-                            WHERE LocalOrderID = @LocalOrderID";
-
-                            using (var updateCmd = new SqliteCommand(updateSql, sqliteConn))
-                            {
-                                updateCmd.Parameters.AddWithValue("@LocalOrderID", localOrderId);
-                                updateCmd.ExecuteNonQuery();
+                                // Đánh dấu đã đồng bộ
+                                string updateSql = "UPDATE LocalOrders SET IsSynced = 1 WHERE LocalOrderID = @LocalOrderID";
+                                using (var updateCmd = new SqliteCommand(updateSql, sqliteConn))
+                                {
+                                    updateCmd.Parameters.AddWithValue("@LocalOrderID", localOrderId);
+                                    updateCmd.ExecuteNonQuery();
+                                }
                             }
                         }
                         catch (Exception ex)
                         {
-                            MessageBox.Show(ex.Message, "Lỗi sync offline");
+                            // Log lỗi nếu cần
+                            System.Diagnostics.Debug.WriteLine($"Lỗi sync đơn {localOrderId}: {ex.Message}");
                         }
                     }
                 }
-            }
-
-            UpdatePendingOfflineCount();
-
-            if (PendingOrderCount == 0)
-            {
-                OfflineBanner.Visibility = Visibility.Collapsed;
             }
         }
     }
