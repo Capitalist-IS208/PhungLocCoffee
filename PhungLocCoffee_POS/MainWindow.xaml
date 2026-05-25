@@ -206,7 +206,17 @@
                                 <Ellipse Width="8" Height="8" Fill="#E53E3E" VerticalAlignment="Center" Margin="0,0,10,0"/>
                                 <TextBlock Text="{Binding PendingOfflineOrders, StringFormat={}{0} đơn chờ đồng bộ}" FontSize="13" FontWeight="Bold" Foreground="#E53E3E" VerticalAlignment="Center"/>
                             </StackPanel>
-                            <Button Content="Gửi ngay" HorizontalAlignment="Right" FontSize="11" FontWeight="Bold" Foreground="White" Background="#E53E3E" BorderThickness="0" Height="24" Padding="10,0" md:ButtonAssist.CornerRadius="6"/>
+                            <Button Content="Gửi ngay"
+                            HorizontalAlignment="Right"
+                            FontSize="11"
+                            FontWeight="Bold"
+                            Foreground="White"
+                            Background="#E53E3E"
+                            BorderThickness="0"
+                            Height="24"
+                            Padding="10,0"
+                            md:ButtonAssist.CornerRadius="6"
+                            Click="BtnSyncNow_Click"/>
                         </Grid>
                     </Border>
 

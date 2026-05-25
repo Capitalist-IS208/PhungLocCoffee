@@ -30,8 +30,12 @@
 
                 <TextBlock Text="DANH SÁCH MÓN UỐNG" FontSize="18" FontWeight="Bold" Foreground="#333" Margin="0,0,0,15"/>
 
-                <TextBox Grid.Row="1" materialDesign:HintAssist.Hint="Tìm kiếm món..." 
-                         Style="{StaticResource MaterialDesignOutlinedTextBox}" Margin="0,0,0,15"/>
+                <TextBox x:Name="txtSearchProduct"
+                 Grid.Row="1"
+                 materialDesign:HintAssist.Hint="Tìm kiếm món..."
+                 Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                 Margin="0,0,0,15"
+                 TextChanged="txtSearchProduct_TextChanged"/>
 
                 <DataGrid Grid.Row="2" x:Name="dgProducts" AutoGenerateColumns="False" 
                           CanUserAddRows="False" IsReadOnly="True"

@@ -34,29 +34,41 @@ namespace PhungLocCoffee_POS
             LoadIngredients();
         }
 
-        private void LoadProducts()
+        private void LoadProducts(string keyword = "")
         {
             ProductsList.Clear();
+
             try
             {
                 using (SqlConnection conn = new SqlConnection(_connectionString))
                 {
                     conn.Open();
-                    // Lấy danh sách món từ bảng Products
-                    string query = "SELECT ProductID, ProductName FROM Products WHERE IsActive = 1 ORDER BY ProductName";
+
+                    string query = @"
+                SELECT ProductID, ProductName
+                FROM Products
+                WHERE IsActive = 1
+                AND (@Keyword = '' OR ProductName LIKE N'%' + @Keyword + N'%')
+                ORDER BY ProductName";
+
                     using (SqlCommand cmd = new SqlCommand(query, conn))
-                    using (SqlDataReader reader = cmd.ExecuteReader())
                     {
-                        while (reader.Read())
+                        cmd.Parameters.AddWithValue("@Keyword", keyword);
+
+                        using (SqlDataReader reader = cmd.ExecuteReader())
                         {
-                            ProductsList.Add(new ProductModel
+                            while (reader.Read())
                             {
-                                ProductID = reader.GetInt32(0),
-                                ProductName = reader.GetString(1)
-                            });
+                                ProductsList.Add(new ProductModel
+                                {
+                                    ProductID = reader.GetInt32(0),
+                                    ProductName = reader.GetString(1)
+                                });
+                            }
                         }
                     }
                 }
+
                 dgProducts.ItemsSource = ProductsList;
             }
             catch (Exception ex)
@@ -64,7 +76,10 @@ namespace PhungLocCoffee_POS
                 MessageBox.Show("Lỗi tải danh sách món: " + ex.Message);
             }
         }
-
+        private void txtSearchProduct_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            LoadProducts(txtSearchProduct.Text.Trim());
+        }
         private void LoadIngredients()
         {
             IngredientsList.Clear();

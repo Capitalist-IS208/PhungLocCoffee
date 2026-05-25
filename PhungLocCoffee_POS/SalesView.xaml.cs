@@ -98,9 +98,7 @@ namespace PhungLocCoffee_POS
             CheckoutCommand = new RelayCommand(ExecuteCheckout, CanExecuteCheckout);
 
             LoadSampleData();
-            TrySyncOfflineOrders();
             UpdatePendingOfflineCount();
-            CheckServerConnection();
         }
 
         private void ExecuteSelectCategory(CategoryItem? category)
@@ -288,9 +286,12 @@ namespace PhungLocCoffee_POS
                     }
 
                     // ========== ĐÃ SỬA: XÓA CustomerId VÀ NULL ==========
+                    Guid orderId = Guid.NewGuid();
+
                     string orderQuery = @"
                     INSERT INTO Orders
                     (
+                        OrderID,
                         BranchID,
                         UserID,
                         TotalAmount,
@@ -302,6 +303,7 @@ namespace PhungLocCoffee_POS
                     )
                     VALUES
                     (
+                        @OrderID,
                         @BranchID,
                         @UserID,
                         @TotalAmount,
@@ -310,22 +312,18 @@ namespace PhungLocCoffee_POS
                         GETDATE(),
                         @OfflineID,
                         1
-                    );
-
-                    SELECT SCOPE_IDENTITY();
-                    ";
-
-                    int orderId;
+                    );";
 
                     using (SqlCommand cmd = new SqlCommand(orderQuery, conn))
                     {
+                        cmd.Parameters.AddWithValue("@OrderID", orderId);
                         cmd.Parameters.AddWithValue("@BranchID", _currentUser.BranchID);
                         cmd.Parameters.AddWithValue("@UserID", _currentUser.UserID);
                         cmd.Parameters.AddWithValue("@TotalAmount", info.TotalAmount);
                         cmd.Parameters.AddWithValue("@PaymentMethod", info.PaymentMethod);
                         cmd.Parameters.AddWithValue("@OfflineID", Guid.NewGuid().ToString());
 
-                        orderId = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+                        await cmd.ExecuteNonQueryAsync();
                     }
 
                     foreach (var item in Cart)
@@ -582,7 +580,7 @@ namespace PhungLocCoffee_POS
                             });
                         }
                     }
-                    CacheProductsToLocal();
+                    Task.Run(() => CacheProductsToLocal());
                 }
             }
             catch
@@ -754,9 +752,16 @@ namespace PhungLocCoffee_POS
             }
 
             OnPropertyChanged(nameof(PendingOrderCount));
+
+            var mainWindow = Window.GetWindow(this) as MainWindow;
+
+            if (mainWindow != null)
+            {
+                mainWindow.PendingOfflineOrders = PendingOrderCount;
+            }
         }
 
-        private void TrySyncOfflineOrders()
+        public void TrySyncOfflineOrders()
         {
             if (!CheckServerConnection())
                 return;
@@ -780,25 +785,47 @@ namespace PhungLocCoffee_POS
                             {
                                 sqlConn.Open();
 
-                                string insertSql = @"
-                            INSERT INTO Orders (BranchID, UserID, TotalAmount, DiscountAmount, PaymentMethod, CreatedAt, OfflineID, IsSynced)
-                            VALUES (@BranchID, @UserID, @TotalAmount, @DiscountAmount, @PaymentMethod, @CreatedAt, @OfflineID, 1);
-                            SELECT SCOPE_IDENTITY();";
+                                Guid newOrderId = Guid.NewGuid();
 
-                                int newOrderId;
+                                string insertSql = @"
+                                INSERT INTO Orders
+                                (
+                                    OrderID,
+                                    BranchID,
+                                    UserID,
+                                    TotalAmount,
+                                    DiscountAmount,
+                                    PaymentMethod,
+                                    CreatedAt,
+                                    OfflineID,
+                                    IsSynced
+                                )
+                                VALUES
+                                (
+                                    @OrderID,
+                                    @BranchID,
+                                    @UserID,
+                                    @TotalAmount,
+                                    @DiscountAmount,
+                                    @PaymentMethod,
+                                    @CreatedAt,
+                                    @OfflineID,
+                                    1
+                                );";
 
                                 using (SqlCommand insertCmd = new SqlCommand(insertSql, sqlConn))
                                 {
                                     // Kiểm tra DBNull an toàn cho từng trường
+                                    insertCmd.Parameters.AddWithValue("@OrderID", newOrderId);
                                     insertCmd.Parameters.AddWithValue("@BranchID", reader["BranchID"] != DBNull.Value ? Convert.ToInt32(reader["BranchID"]) : 0);
                                     insertCmd.Parameters.AddWithValue("@UserID", reader["UserID"] != DBNull.Value ? Convert.ToInt32(reader["UserID"]) : 0);
                                     insertCmd.Parameters.AddWithValue("@TotalAmount", reader["TotalAmount"] != DBNull.Value ? Convert.ToDouble(reader["TotalAmount"]) : 0.0);
-                                    insertCmd.Parameters.AddWithValue("@DiscountAmount", reader["DiscountAmount"] != DBNull.Value ? Convert.ToDouble(reader["DiscountAmount"]) : 0.0);
+                                    insertCmd.Parameters.AddWithValue("@DiscountAmount", 0);
                                     insertCmd.Parameters.AddWithValue("@PaymentMethod", reader["PaymentMethod"]?.ToString() ?? "");
                                     insertCmd.Parameters.AddWithValue("@CreatedAt", reader["CreatedAt"]?.ToString() ?? DateTime.Now.ToString());
                                     insertCmd.Parameters.AddWithValue("@OfflineID", localOrderId);
 
-                                    newOrderId = Convert.ToInt32(insertCmd.ExecuteScalar());
+                                    insertCmd.ExecuteNonQuery();
                                 }
 
                                 // Sync Chi tiết đơn hàng
@@ -853,12 +880,21 @@ namespace PhungLocCoffee_POS
                         }
                         catch (Exception ex)
                         {
-                            // Log lỗi nếu cần
-                            System.Diagnostics.Debug.WriteLine($"Lỗi sync đơn {localOrderId}: {ex.Message}");
+                            MessageBox.Show(
+                                "Lỗi sync đơn offline:\n" + ex.Message,
+                                "Lỗi đồng bộ",
+                                MessageBoxButton.OK,
+                                MessageBoxImage.Error
+                            );
                         }
                     }
                 }
             }
+        }
+
+        public void TrySyncOfflineOrdersFromOutside()
+        {
+            TrySyncOfflineOrders();
         }
     }
 

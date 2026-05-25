@@ -6,11 +6,13 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Threading;
 using System.Windows.Input;
+using System.Linq;
 
 namespace PhungLocCoffee_POS
 {
     public partial class MainWindow : Window, INotifyPropertyChanged
     {
+        private SalesView? _salesView;
         private readonly UserSession _currentUser;
 
         private string _currentTime = string.Empty;
@@ -49,7 +51,7 @@ namespace PhungLocCoffee_POS
             AvatarChar = string.IsNullOrEmpty(user.FullName) ? "U" : user.FullName.Substring(0, 1);
             RoleAndBranch = $"{user.RoleName} • {user.BranchName}";
             CurrentShiftStatus = "Đang trong ca sáng (06:00 - 14:00)";
-            PendingOfflineOrders = 0;
+            PendingOfflineOrders = GetPendingOfflineOrders();
 
             ApplyPermission();
 
@@ -106,10 +108,87 @@ namespace PhungLocCoffee_POS
             }
         }
 
+        private int GetPendingOfflineOrders()
+        {
+            try
+            {
+                using (var conn = new Microsoft.Data.Sqlite.SqliteConnection(
+                    LocalDatabaseHelper.GetConnectionString()))
+                {
+                    conn.Open();
+
+                    string sql = "SELECT COUNT(*) FROM LocalOrders WHERE IsSynced = 0";
+
+                    using (var cmd = new Microsoft.Data.Sqlite.SqliteCommand(sql, conn))
+                    {
+                        return Convert.ToInt32(cmd.ExecuteScalar());
+                    }
+                }
+            }
+            catch
+            {
+                return 0;
+            }
+        }
+        private void BtnSyncNow_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var salesView = MainContent.Children
+                    .OfType<SalesView>()
+                    .FirstOrDefault();
+
+                if (salesView == null)
+                {
+                    salesView = new SalesView(_currentUser);
+                }
+
+                salesView.TrySyncOfflineOrdersFromOutside();
+
+                PendingOfflineOrders = GetPendingOfflineOrders();
+
+                MainContent.Children.Clear();
+                MainContent.Children.Add(new HomeView(_currentUser));
+
+                if (PendingOfflineOrders > 0)
+                {
+                    MessageBox.Show(
+                        $"Hiện đang offline nên chưa thể đồng bộ.\nCòn {PendingOfflineOrders} đơn đang chờ đồng bộ.",
+                        "Chưa thể đồng bộ",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning
+                    );
+                }
+                else
+                {
+                    MessageBox.Show(
+                        "Đã đồng bộ tất cả đơn offline thành công.",
+                        "Đồng bộ thành công",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information
+                    );
+                }
+            }
+            catch (Exception ex)
+            {
+                PendingOfflineOrders = GetPendingOfflineOrders();
+
+                MessageBox.Show(
+                    "Không thể đồng bộ đơn offline.\n" + ex.Message,
+                    "Lỗi đồng bộ",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error
+                );
+            }
+        }
         private void Window_MouseDown(object sender, MouseButtonEventArgs e)
         {
             Keyboard.ClearFocus();
             if (AdminPopup.IsOpen) AdminPopup.IsOpen = false;
+        }
+        public void RefreshPendingOfflineOrders()
+        {
+            PendingOfflineOrders = GetPendingOfflineOrders();
         }
 
         private void AdminContainer_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
@@ -240,8 +319,14 @@ namespace PhungLocCoffee_POS
                 return;
 
             SetActiveMenu(btnSales, iconSales, txtSales);
+
+            if (_salesView == null)
+            {
+                _salesView = new SalesView(_currentUser);
+            }
+
             MainContent.Children.Clear();
-            MainContent.Children.Add(new SalesView(_currentUser));
+            MainContent.Children.Add(_salesView);
         }
 
         private void MenuSuppliers_Click(object sender, MouseButtonEventArgs e)

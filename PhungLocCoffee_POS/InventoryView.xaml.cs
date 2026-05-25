@@ -508,11 +508,12 @@ namespace PhungLocCoffee_POS
                         }
 
                         int toBranchId = Convert.ToInt32(cboBranch.SelectedValue);
-                        int transferId;
+                        Guid transferId = Guid.NewGuid();
 
                         string transferQuery = @"
                         INSERT INTO StockTransfer
                         (
+                            TransferID,
                             FromBranchID,
                             ToBranchID,
                             CreatedBy,
@@ -521,21 +522,22 @@ namespace PhungLocCoffee_POS
                         )
                         VALUES
                         (
+                            @TransferID,
                             @FromBranchID,
                             @ToBranchID,
                             @CreatedBy,
                             N'Đã chuyển',
                             GETDATE()
-                        );
-
-                        SELECT SCOPE_IDENTITY();";
+                        );";
 
                         using (SqlCommand cmd = new SqlCommand(transferQuery, conn))
                         {
+                            cmd.Parameters.AddWithValue("@TransferID", transferId);
                             cmd.Parameters.AddWithValue("@FromBranchID", _currentUser.BranchID);
                             cmd.Parameters.AddWithValue("@ToBranchID", toBranchId);
                             cmd.Parameters.AddWithValue("@CreatedBy", _currentUser.UserID);
-                            transferId = Convert.ToInt32(cmd.ExecuteScalar());
+
+                            cmd.ExecuteNonQuery();
                         }
 
                         string detailQuery = @"
