@@ -366,7 +366,7 @@ namespace PhungLocCoffee_POS
                 }
 
                 double systemQty = selectedItem.SystemQty;
-                int auditId;
+                Guid auditId = Guid.NewGuid();
 
                 using (SqlConnection conn = new SqlConnection(GetConnectionString()))
                 {
@@ -375,6 +375,7 @@ namespace PhungLocCoffee_POS
                     string auditQuery = @"
                     INSERT INTO InventoryAudit
                     (
+                        AuditID,
                         BranchID,
                         UserID,
                         AuditDate,
@@ -382,21 +383,20 @@ namespace PhungLocCoffee_POS
                     )
                     VALUES
                     (
+                        @AuditID,
                         @BranchID,
                         @UserID,
                         GETDATE(),
                         @Notes
-                    );
-
-                    SELECT SCOPE_IDENTITY();
-                    ";
+                    )";
 
                     using (SqlCommand cmd = new SqlCommand(auditQuery, conn))
                     {
+                        cmd.Parameters.AddWithValue("@AuditID", auditId);
                         cmd.Parameters.AddWithValue("@BranchID", _currentUser.BranchID);
                         cmd.Parameters.AddWithValue("@UserID", _currentUser.UserID);
                         cmd.Parameters.AddWithValue("@Notes", "Kiểm kho nhanh từ app POS");
-                        auditId = Convert.ToInt32(cmd.ExecuteScalar());
+                        cmd.ExecuteNonQuery();
                     }
 
                     string detailQuery = @"
