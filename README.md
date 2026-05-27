@@ -1,7 +1,26 @@
+<p align="center">
+  <a href="https://www.uit.edu.vn/" title="Trường Đại học Công nghệ Thông tin" style="border: 5;">
+    <img src="https://i.imgur.com/WmMnSRt.png" alt="Trường Đại học Công nghệ Thông tin | University of Information Technology">
+  </a>
+</p>
+
+<!-- Title -->
+<h1 align="center">
+
+
+
 # ĐỒ ÁN: HỆ THỐNG QUẢN LÝ CHUỖI CỬA HÀNG CÀ PHÊ PHỤNG LỘC
 **Mã đồ án:** IS208.Q21
 **Loại dự án:** Desktop Application – Multi-branch  
 **Nhóm thực hiện:** Capitalist
+**Thành viên nhóm:**
+| STT | Họ và tên               | MSSV     |
+|-----|------------------------|----------|
+| 1   | Vũ Lê Minh Anh          | 24520137 |
+| 2   | Liên Yến Ngân           | 24521127 |
+| 3   | Bùi Phan Giáng Trân     | 24521808 |
+| 4   | Hoàng Ái Mỹ             | 24521091 |
+| 5   | Nguyễn Thị Lam Giang    | 24520419 |
 
 ---
 
