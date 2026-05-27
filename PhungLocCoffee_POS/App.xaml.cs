@@ -1,6 +1,10 @@
 ﻿using System.Configuration;
 using System.Data;
 using System.Windows;
+
+using PhungLocCoffee_POS.Models;
+using PhungLocCoffee_POS.Views;
+using PhungLocCoffee_POS.Helpers;
 
 namespace PhungLocCoffee_POS
 {
@@ -17,3 +21,4 @@ namespace PhungLocCoffee_POS
         }
     }
 }
+

@@ -6,8 +6,12 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+
+using PhungLocCoffee_POS.Models;
+using PhungLocCoffee_POS.Views;
+using PhungLocCoffee_POS.Helpers;
 
-namespace PhungLocCoffee_POS
+namespace PhungLocCoffee_POS.Views
 {
     public partial class InventoryView : UserControl
     {
@@ -787,11 +791,48 @@ namespace PhungLocCoffee_POS
         public string Unit { get; set; } = string.Empty;
         public double CurrentQty { get; set; }
         public double MinStock { get; set; }
+        
+        // Mở rộng thêm thuộc tính mặc định để test các trạng thái
+        public double MaxStock { get; set; } = 1000;
+        public DateTime ExpiryDate { get; set; } = DateTime.Now.AddDays(30);
 
         public bool IsLowStock => CurrentQty <= MinStock;
-        public string StatusText => IsLowStock ? "CẦN NHẬP GẤP" : "ĐANG AN TOÀN";
-        public string StatusBgColor => IsLowStock ? "#FFF5F5" : "#F0FFF4";
-        public string StatusTextColor => IsLowStock ? "#E53E3E" : "#38A169";
+        
+        public string StatusText 
+        {
+            get
+            {
+                if (ExpiryDate < DateTime.Now) return "Quá date";
+                if (CurrentQty <= 0) return "Hết hàng";
+                if (CurrentQty > MaxStock) return "Tồn cao";
+                if (IsLowStock) return "Cần nhập gấp";
+                return "Bình thường";
+            }
+        }
+
+        public string StatusBgColor
+        {
+            get
+            {
+                if (ExpiryDate < DateTime.Now) return "#E2E8F0"; // Xám
+                if (CurrentQty <= 0) return "#FED7D7"; // Đỏ nhạt
+                if (CurrentQty > MaxStock) return "#FEFCBF"; // Vàng nhạt
+                if (IsLowStock) return "#FFF5F5"; // Đỏ/Hồng nhạt
+                return "#F0FFF4"; // Xanh nhạt
+            }
+        }
+
+        public string StatusTextColor
+        {
+            get
+            {
+                if (ExpiryDate < DateTime.Now) return "#4A5568"; // Xám đậm
+                if (CurrentQty <= 0) return "#9B2C2C"; // Đỏ đậm
+                if (CurrentQty > MaxStock) return "#B7791F"; // Vàng đậm
+                if (IsLowStock) return "#E53E3E"; // Đỏ
+                return "#38A169"; // Xanh đậm
+            }
+        }
     }
 
     public class InventoryCheckItem
@@ -810,3 +851,4 @@ namespace PhungLocCoffee_POS
         public string BranchName { get; set; } = string.Empty;
     }
 }
+

@@ -1,13 +1,38 @@
-# Bỏ qua thư mục build của Visual Studio
+## Visual Studio
+.vs/
 [Bb]in/
 [Oo]bj/
-.vs/
 *.user
 *.suo
 *.userosscache
 *.sln.docstates
+*.opensdf
+*.sdf
+*.cache
+*.dbmdl
+*.lsproj.user
+*.sqlproj.user
 
-# Bỏ qua các file tạm
+## Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+build/
+
+## Database
+*.sqlite
+*.db
+local_db/
+/Database/*.bak
+/Database/*.mdf
+/Database/*.ldf
+
+## Packages & Others
+.idea/
+*.sln.iml
+.vscode/
+node_modules/
 *.log
 *.tmp
 *.bak

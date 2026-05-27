@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="PhungLocCoffee_POS.HomeView"
+﻿<UserControl x:Class="PhungLocCoffee_POS.Views.HomeView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:md="http://materialdesigninxaml.net/winfx/xaml/themes"

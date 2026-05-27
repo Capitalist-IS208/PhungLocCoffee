@@ -7,13 +7,17 @@ using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
 using Microsoft.Data.SqlClient;
+
+using PhungLocCoffee_POS.Models;
+using PhungLocCoffee_POS.Views;
+using PhungLocCoffee_POS.Helpers;
 
-namespace PhungLocCoffee_POS
+namespace PhungLocCoffee_POS.Views
 {
     public partial class BOMView : UserControl, INotifyPropertyChanged
     {
-        private string _connectionString;
-        private ProductModel _selectedProduct;
+        private string _connectionString = string.Empty;
+        private ProductModel? _selectedProduct;
 
         public ObservableCollection<ProductModel> ProductsList { get; set; } = new ObservableCollection<ProductModel>();
         public ObservableCollection<IngredientModel> IngredientsList { get; set; } = new ObservableCollection<IngredientModel>();
@@ -24,7 +28,11 @@ namespace PhungLocCoffee_POS
         public BOMView()
         {
             InitializeComponent();
-            _connectionString = ConfigurationManager.ConnectionStrings["DefaultConnection"].ConnectionString;
+            var connSetting = ConfigurationManager.ConnectionStrings["DefaultConnection"];
+            if (connSetting != null)
+            {
+                _connectionString = connSetting.ConnectionString;
+            }
             DataContext = this;
         }
 
@@ -49,7 +57,7 @@ namespace PhungLocCoffee_POS
                 FROM Products
                 WHERE IsActive = 1
                 AND (@Keyword = '' OR ProductName LIKE N'%' + @Keyword + N'%')
-                ORDER BY ProductName";
+                ORDER BY ProductID";
 
                     using (SqlCommand cmd = new SqlCommand(query, conn))
                     {
@@ -57,10 +65,12 @@ namespace PhungLocCoffee_POS
 
                         using (SqlDataReader reader = cmd.ExecuteReader())
                         {
+                            int stt = 1;
                             while (reader.Read())
                             {
                                 ProductsList.Add(new ProductModel
                                 {
+                                    STT = stt++,
                                     ProductID = reader.GetInt32(0),
                                     ProductName = reader.GetString(1)
                                 });
@@ -134,6 +144,7 @@ namespace PhungLocCoffee_POS
             RecipeDetails.Clear();
             try
             {
+                var tempDetails = new System.Collections.Generic.List<RecipeDetailModel>();
                 using (SqlConnection conn = new SqlConnection(_connectionString))
                 {
                     conn.Open();
@@ -143,7 +154,8 @@ namespace PhungLocCoffee_POS
                         FROM Recipes r
                         JOIN Ingredients i ON r.IngredientID = i.IngredientID
                         LEFT JOIN Units u ON i.UnitID = u.UnitID
-                        WHERE r.ProductID = @ProductID";
+                        WHERE r.ProductID = @ProductID
+                        ORDER BY r.RecipeID";
 
                     using (SqlCommand cmd = new SqlCommand(query, conn))
                     {
@@ -152,8 +164,9 @@ namespace PhungLocCoffee_POS
                         {
                             while (reader.Read())
                             {
-                                RecipeDetails.Add(new RecipeDetailModel
+                                tempDetails.Add(new RecipeDetailModel
                                 {
+                                    STT = 0, // Sẽ gán sau
                                     RecipeID = reader.GetInt32(0),
                                     IngredientID = reader.GetInt32(1),
                                     IngredientName = reader.GetString(2),
@@ -164,6 +177,30 @@ namespace PhungLocCoffee_POS
                         }
                     }
                 }
+
+                // Sắp xếp lại 12 nguyên liệu đầu tiên theo định lượng giảm dần (tần suất/quan trọng)
+                if (tempDetails.Count > 0)
+                {
+                    int takeCount = Math.Min(12, tempDetails.Count);
+                    var top12 = tempDetails.GetRange(0, takeCount);
+                    var rest = tempDetails.GetRange(takeCount, tempDetails.Count - takeCount);
+
+                    // Sắp xếp top 12 theo số lượng giảm dần (ví dụ nguyên liệu chính lên đầu)
+                    top12.Sort((a, b) => b.Quantity.CompareTo(a.Quantity));
+
+                    tempDetails.Clear();
+                    tempDetails.AddRange(top12);
+                    tempDetails.AddRange(rest);
+                }
+
+                // Gán lại STT
+                int stt = 1;
+                foreach (var item in tempDetails)
+                {
+                    item.STT = stt++;
+                    RecipeDetails.Add(item);
+                }
+
                 dgRecipeDetails.ItemsSource = RecipeDetails;
             }
             catch (Exception ex)
@@ -237,7 +274,10 @@ namespace PhungLocCoffee_POS
                                 cmd.ExecuteNonQuery();
                             }
                         }
-                        LoadRecipeDetails(_selectedProduct.ProductID);
+                        if (_selectedProduct != null)
+                        {
+                            LoadRecipeDetails(_selectedProduct.ProductID);
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -248,8 +288,8 @@ namespace PhungLocCoffee_POS
         }
 
         // --- INotifyPropertyChanged Implementation ---
-        public event PropertyChangedEventHandler PropertyChanged;
-        protected void OnPropertyChanged([CallerMemberName] string name = null)
+        public event PropertyChangedEventHandler? PropertyChanged;
+        protected void OnPropertyChanged([CallerMemberName] string? name = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
         }
@@ -258,23 +298,26 @@ namespace PhungLocCoffee_POS
     // --- Data Models ---
     public class ProductModel
     {
+        public int STT { get; set; }
         public int ProductID { get; set; }
-        public string ProductName { get; set; }
+        public string ProductName { get; set; } = string.Empty;
     }
 
     public class IngredientModel
     {
         public int IngredientID { get; set; }
-        public string IngredientName { get; set; }
-        public string Unit { get; set; }
+        public string IngredientName { get; set; } = string.Empty;
+        public string Unit { get; set; } = string.Empty;
     }
 
     public class RecipeDetailModel
     {
+        public int STT { get; set; }
         public int RecipeID { get; set; }
         public int IngredientID { get; set; }
-        public string IngredientName { get; set; }
+        public string IngredientName { get; set; } = string.Empty;
         public decimal Quantity { get; set; }
-        public string Unit { get; set; }
+        public string Unit { get; set; } = string.Empty;
     }
 }
+

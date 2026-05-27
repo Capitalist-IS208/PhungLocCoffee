@@ -12,8 +12,12 @@ using System.Windows.Media.Imaging;
 using Microsoft.Data.SqlClient;
 using System.Configuration;
 using Microsoft.Data.Sqlite;
+
+using PhungLocCoffee_POS.Models;
+using PhungLocCoffee_POS.Views;
+using PhungLocCoffee_POS.Helpers;
 
-namespace PhungLocCoffee_POS
+namespace PhungLocCoffee_POS.Views
 {
     public partial class SalesView : UserControl, INotifyPropertyChanged
     {
@@ -217,6 +221,52 @@ namespace PhungLocCoffee_POS
                 }
                 QrCodeImage.Source = bitmap;
             }
+            else
+            {
+                // Thử load file qrrepo.png từ nhiều vị trí khác nhau
+                try
+                {
+                    string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                    string[] possiblePaths = new string[]
+                    {
+                        System.IO.Path.Combine(baseDir, "qrrepo.png"),                                      // bin\Debug\net8.0-windows\
+                        System.IO.Path.Combine(baseDir, "..", "..", "..", "qrrepo.png"),                   // Project Root (khi chạy từ bin\Debug\net8.0-windows)
+                        System.IO.Path.Combine(Environment.CurrentDirectory, "qrrepo.png")                 // Thư mục làm việc hiện tại
+                    };
+
+                    string finalPath = string.Empty;
+                    foreach (var path in possiblePaths)
+                    {
+                        if (System.IO.File.Exists(path))
+                        {
+                            finalPath = path;
+                            break;
+                        }
+                    }
+
+                    if (!string.IsNullOrEmpty(finalPath))
+                    {
+                        var bitmap = new BitmapImage();
+                        bitmap.BeginInit();
+                        bitmap.UriSource = new Uri(finalPath);
+                        bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                        bitmap.EndInit();
+                        QrCodeImage.Source = bitmap;
+                    }
+                    else
+                    {
+                        MessageBox.Show($"Chưa có ảnh QR.\nVui lòng thêm file qrrepo.png vào:\n{possiblePaths[1]}", "Thông báo", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        QrPopup.IsOpen = false;
+                        return;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Lỗi load ảnh QR: " + ex.Message);
+                    QrPopup.IsOpen = false;
+                    return;
+                }
+            }
             QrAmount.Text = amount.ToString("N0") + " đ";
             QrPopup.IsOpen = true;
         }
@@ -228,7 +278,6 @@ namespace PhungLocCoffee_POS
         }
 
         public event EventHandler<int>? CategorySelected;
-        public event Func<CheckoutInfo, System.Threading.Tasks.Task<CheckoutResult>>? CheckoutRequested;
 
         protected virtual async System.Threading.Tasks.Task<CheckoutResult> OnCheckoutRequested(CheckoutInfo info)
         {
@@ -777,7 +826,7 @@ namespace PhungLocCoffee_POS
                 {
                     while (reader.Read())
                     {
-                        string localOrderId = reader["LocalOrderID"].ToString();
+                        string localOrderId = reader["LocalOrderID"]?.ToString() ?? string.Empty;
 
                         try
                         {
@@ -1044,3 +1093,4 @@ namespace PhungLocCoffee_POS
         public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture) => throw new NotImplementedException();
     }
 }
+

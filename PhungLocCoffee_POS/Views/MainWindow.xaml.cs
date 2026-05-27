@@ -7,8 +7,12 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using System.Windows.Input;
 using System.Linq;
+
+using PhungLocCoffee_POS.Models;
+using PhungLocCoffee_POS.Views;
+using PhungLocCoffee_POS.Helpers;
 
-namespace PhungLocCoffee_POS
+namespace PhungLocCoffee_POS.Views
 {
     public partial class MainWindow : Window, INotifyPropertyChanged
     {
@@ -36,7 +40,7 @@ namespace PhungLocCoffee_POS
         private int _pendingOfflineOrders;
         public int PendingOfflineOrders { get => _pendingOfflineOrders; set { _pendingOfflineOrders = value; OnPropertyChanged(); } }
 
-        private string placeholderText = "Tìm món, SĐT khách hàng, đơn hàng...";
+        private string placeholderText = "Tìm món hoặc nguyên liệu...";
         private DispatcherTimer notificationTimer;
 
         public MainWindow(UserSession user)
@@ -79,31 +83,101 @@ namespace PhungLocCoffee_POS
         {
         }
 
+        private void SearchProductsAndIngredients(string keyword)
+        {
+            try
+            {
+                string connStr = System.Configuration.ConfigurationManager.ConnectionStrings["DefaultConnection"].ConnectionString;
+                using (var conn = new Microsoft.Data.SqlClient.SqlConnection(connStr))
+                {
+                    conn.Open();
+                    string sql = @"
+                        SELECT 'Món ăn' as Type, ProductName as Name FROM Products WHERE ProductName LIKE @keyword AND IsActive = 1
+                        UNION
+                        SELECT 'Nguyên liệu', IngredientName FROM Ingredients WHERE IngredientName LIKE @keyword";
+
+                    using (var cmd = new Microsoft.Data.SqlClient.SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@keyword", "%" + keyword + "%");
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            System.Text.StringBuilder sb = new System.Text.StringBuilder();
+                            int count = 0;
+                            while (reader.Read() && count < 5)
+                            {
+                                sb.AppendLine($"- [{reader["Type"]}] {reader["Name"]}");
+                                count++;
+                            }
+
+                            if (count > 0)
+                            {
+                                txtNotificationMessage.Text = $"Tìm thấy {count} kết quả:\n{sb.ToString()}";
+                            }
+                            else
+                            {
+                                txtNotificationMessage.Text = "Không tìm thấy món ăn hoặc nguyên liệu nào.";
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                txtNotificationMessage.Text = "Lỗi khi tìm kiếm: " + ex.Message;
+            }
+
+            SearchNotificationPopup.IsOpen = true;
+            notificationTimer.Stop();
+            notificationTimer.Start();
+        }
+
         private void ApplyPermission()
         {
+            // Mặc định hiển thị tất cả
             btnHome.Visibility = Visibility.Visible;
             btnSales.Visibility = Visibility.Visible;
             btnInventory.Visibility = Visibility.Visible;
             btnReports.Visibility = Visibility.Visible;
-            btnBOM.Visibility = Visibility.Visible; // Hiển thị nút BOM
+            btnBOM.Visibility = Visibility.Visible;
+            btnSuppliers.Visibility = Visibility.Visible;
 
-            if (_currentUser.IsAdmin || _currentUser.IsManager)
+            if (_currentUser.IsAdmin)
             {
-                return; // Admin và Quản lý thấy hết
+                // Admin: Thấy tất cả (không làm gì thêm)
+                return;
+            }
+
+            if (_currentUser.IsManager)
+            {
+                // Manager: Thấy tất cả (theo code hiện tại), nhưng logic ReportsView sẽ xử lý việc lọc chi nhánh
+                return;
+            }
+
+            if (_currentUser.IsAccountant)
+            {
+                // Kế toán: Trang chủ, Kho hàng, Nhà cung cấp, Báo cáo.
+                // Ẩn: Bán hàng, Công thức.
+                btnSales.Visibility = Visibility.Collapsed;
+                btnBOM.Visibility = Visibility.Collapsed;
+                return;
             }
 
             if (_currentUser.IsStaff)
             {
-                // Staff không được quyền vào xem / chỉnh sửa CÔNG THỨC (BOM)
-                btnBOM.Visibility = Visibility.Collapsed;
+                // Staff: Trang chủ, Bán hàng, Công thức, Kho hàng.
+                // Ẩn: Nhà cung cấp, Báo cáo.
+                btnSuppliers.Visibility = Visibility.Collapsed;
+                btnReports.Visibility = Visibility.Collapsed;
                 return;
             }
 
             if (_currentUser.IsInventoryKeeper)
             {
+                // Giữ nguyên logic cũ cho InventoryKeeper nếu cần
                 btnSales.Visibility = Visibility.Collapsed;
                 btnReports.Visibility = Visibility.Collapsed;
-                btnBOM.Visibility = Visibility.Collapsed; // Thủ kho cũng không sửa công thức
+                btnBOM.Visibility = Visibility.Collapsed;
+                btnSuppliers.Visibility = Visibility.Collapsed;
                 return;
             }
         }
@@ -225,10 +299,7 @@ namespace PhungLocCoffee_POS
 
                 if (!string.IsNullOrEmpty(keyword) && keyword != placeholderText)
                 {
-                    txtNotificationMessage.Text = $"Không có dữ liệu nào khớp với '{keyword}'.";
-                    SearchNotificationPopup.IsOpen = true;
-                    notificationTimer.Stop();
-                    notificationTimer.Start();
+                    SearchProductsAndIngredients(keyword);
                     Keyboard.ClearFocus();
                 }
             }
@@ -379,3 +450,4 @@ namespace PhungLocCoffee_POS
             => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 }
+
