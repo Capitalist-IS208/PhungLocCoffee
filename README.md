@@ -11,8 +11,11 @@
 
 # ĐỒ ÁN: HỆ THỐNG QUẢN LÝ CHUỖI CỬA HÀNG CÀ PHÊ PHỤNG LỘC
 **Mã đồ án:** IS208.Q21
+
 **Loại dự án:** Desktop Application – Multi-branch  
+
 **Nhóm thực hiện:** Capitalist
+
 **Thành viên nhóm:**
 | STT | Họ và tên               | MSSV     |
 |-----|------------------------|----------|
