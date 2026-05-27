@@ -1,7 +1,7 @@
-# ĐỒ ÁN 1: HỆ THỐNG QUẢN LÝ CHUỖI CỬA HÀNG CÀ PHÊ PHỤNG LỘC
-**Mã đồ án:** ITPJ2601  
+# ĐỒ ÁN: HỆ THỐNG QUẢN LÝ CHUỖI CỬA HÀNG CÀ PHÊ PHỤNG LỘC
+**Mã đồ án:** IS208.Q21
 **Loại dự án:** Desktop Application – Multi-branch  
-**Đội ngũ thực hiện:** Nhóm 5 thành viên
+**Nhóm thực hiện:** Capitalist
 
 ---
 
@@ -33,7 +33,6 @@ Mở PowerShell tại thư mục `Database/` và chạy lệnh:
 ```powershell
 .\Init-Database.ps1
 ```
-*Script sẽ tự động tạo Schema và nạp dữ liệu demo chuyên nghiệp: 5 chi nhánh lớn, doanh thu tăng trưởng 6 tháng, và 100+ nguyên liệu chuẩn.*
 
 ### Bước 2: Build & Chạy ứng dụng
 1. Mở file `PhungLocCoffee_POS.slnx` (hoặc `.sln`) bằng Visual Studio 2022.
@@ -41,7 +40,7 @@ Mở PowerShell tại thư mục `Database/` và chạy lệnh:
 3. Nhấn **F5** để chạy ứng dụng.
 
 **Thông tin đăng nhập Demo:**
-- **Tài khoản:** `accountant`
+- **Tài khoản:** `admin`
 - **Mật khẩu:** `123`
 
 ## 5. Tiêu chí thành công & Kết quả bản Demo
@@ -49,6 +48,3 @@ Mở PowerShell tại thư mục `Database/` và chạy lệnh:
 - **Báo cáo:** Dashboard hiển thị doanh thu real-time của 8 chi nhánh.
 - **BOM:** Công thức được cấu trúc theo nhóm (Cà phê, Sữa, Topping...) giúp quản lý dễ dàng.
 - **Hiệu suất:** Giao diện tối ưu, phản hồi tức thì ngay cả khi xử lý lượng dữ liệu lớn.
-
----
-**Ghi chú:** Toàn bộ Source Code được nộp kèm theo yêu cầu của đồ án, bao gồm đầy đủ logic nghiệp vụ và script database.
