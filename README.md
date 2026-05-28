@@ -25,6 +25,7 @@
 | 4   | Hoàng Ái Mỹ             | 24521091 |
 | 5   | Nguyễn Thị Lam Giang    | 24520419 |
 
+Link repository[:](https://github.com/Capitalist-IS208/PhungLocCoffee) 
 ---
 
 ## 1. Giới thiệu & Vấn đề kinh doanh
