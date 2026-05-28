@@ -11,7 +11,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using Microsoft.Data.Sqlite;
-
+
 using PhungLocCoffee_POS.Models;
 using PhungLocCoffee_POS.Views;
 using PhungLocCoffee_POS.Helpers;
@@ -50,11 +50,11 @@ namespace PhungLocCoffee_POS.Views
             set { _isOfflineMode = value; OnPropertyChanged(); }
         }
 
-        private int _newMembersToday;
-        public int NewMembersToday
+        private int _totalBranches;
+        public int TotalBranches
         {
-            get => _newMembersToday;
-            set { _newMembersToday = value; OnPropertyChanged(); }
+            get => _totalBranches;
+            set { _totalBranches = value; OnPropertyChanged(); }
         }
 
         public SeriesCollection SalesSeries { get; set; } = new SeriesCollection();
@@ -298,14 +298,19 @@ namespace PhungLocCoffee_POS.Views
                     }
 
                     IsOfflineMode = false;
+
+                    // Lấy số lượng chi nhánh
+                    string branchCountQuery = "SELECT COUNT(*) FROM Branches";
+                    using (SqlCommand cmd = new SqlCommand(branchCountQuery, conn))
+                    {
+                        TotalBranches = Convert.ToInt32(cmd.ExecuteScalar());
+                    }
                 }
             }
             catch
             {
                 IsOfflineMode = true;
             }
-
-            NewMembersToday = 0;
 
             SalesSeries = new SeriesCollection
             {

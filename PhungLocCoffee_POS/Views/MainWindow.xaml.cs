@@ -7,7 +7,7 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using System.Windows.Input;
 using System.Linq;
-
+
 using PhungLocCoffee_POS.Models;
 using PhungLocCoffee_POS.Views;
 using PhungLocCoffee_POS.Helpers;
@@ -53,7 +53,16 @@ namespace PhungLocCoffee_POS.Views
             FullName = user.FullName;
             ShortName = user.RoleName;
             AvatarChar = string.IsNullOrEmpty(user.FullName) ? "U" : user.FullName.Substring(0, 1);
-            RoleAndBranch = $"{user.RoleName} • {user.BranchName}";
+
+            if (user.IsAdmin)
+            {
+                RoleAndBranch = user.RoleName; // Admin thì không hiện chi nhánh
+            }
+            else
+            {
+                RoleAndBranch = $"{user.RoleName} • {user.BranchName}";
+            }
+
             CurrentShiftStatus = "Đang trong ca sáng (06:00 - 14:00)";
             PendingOfflineOrders = GetPendingOfflineOrders();
 
@@ -204,31 +213,33 @@ namespace PhungLocCoffee_POS.Views
                 return 0;
             }
         }
-        private void BtnSyncNow_Click(object sender, RoutedEventArgs e)
+        private async void BtnSyncNow_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                var salesView = MainContent.Children
-                    .OfType<SalesView>()
-                    .FirstOrDefault();
+                if (_currentUser.IsInventoryKeeper) return;
 
-                if (salesView == null)
+                // 1. Chuyển sang tab Bán hàng để người dùng thấy progress đồng bộ
+                SetActiveMenu(btnSales, iconSales, txtSales);
+                if (_salesView == null)
                 {
-                    salesView = new SalesView(_currentUser);
+                    _salesView = new SalesView(_currentUser);
                 }
-
-                salesView.TrySyncOfflineOrdersFromOutside();
-
-                PendingOfflineOrders = GetPendingOfflineOrders();
-
                 MainContent.Children.Clear();
-                MainContent.Children.Add(new HomeView(_currentUser));
+                MainContent.Children.Add(_salesView);
+                AdminPopup.IsOpen = false;
+
+                // 2. Chờ đồng bộ hoàn tất
+                await _salesView.TrySyncOfflineOrdersFromOutside();
+
+                // 3. Cập nhật lại số lượng
+                PendingOfflineOrders = GetPendingOfflineOrders();
 
                 if (PendingOfflineOrders > 0)
                 {
                     MessageBox.Show(
-                        $"Hiện đang offline nên chưa thể đồng bộ.\nCòn {PendingOfflineOrders} đơn đang chờ đồng bộ.",
-                        "Chưa thể đồng bộ",
+                        $"Chỉ đồng bộ được một phần.\nCòn {PendingOfflineOrders} đơn chưa thể gửi (kiểm tra lại kết nối server).",
+                        "Đồng bộ chưa hoàn tất",
                         MessageBoxButton.OK,
                         MessageBoxImage.Warning
                     );
@@ -236,7 +247,7 @@ namespace PhungLocCoffee_POS.Views
                 else
                 {
                     MessageBox.Show(
-                        "Đã đồng bộ tất cả đơn offline thành công.",
+                        "Tuyệt vời! Tất cả đơn hàng offline đã được đồng bộ lên hệ thống.",
                         "Đồng bộ thành công",
                         MessageBoxButton.OK,
                         MessageBoxImage.Information
@@ -246,13 +257,7 @@ namespace PhungLocCoffee_POS.Views
             catch (Exception ex)
             {
                 PendingOfflineOrders = GetPendingOfflineOrders();
-
-                MessageBox.Show(
-                    "Không thể đồng bộ đơn offline.\n" + ex.Message,
-                    "Lỗi đồng bộ",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Error
-                );
+                MessageBox.Show("Lỗi đồng bộ: " + ex.Message, "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
         private void Window_MouseDown(object sender, MouseButtonEventArgs e)

@@ -12,7 +12,7 @@ using System.Windows.Media.Imaging;
 using Microsoft.Data.SqlClient;
 using System.Configuration;
 using Microsoft.Data.Sqlite;
-
+
 using PhungLocCoffee_POS.Models;
 using PhungLocCoffee_POS.Views;
 using PhungLocCoffee_POS.Helpers;
@@ -87,6 +87,9 @@ namespace PhungLocCoffee_POS.Views
         public ICommand DecreaseQuantityCommand { get; private set; }
         public ICommand CheckoutCommand { get; private set; }
 
+        private System.Windows.Threading.DispatcherTimer _connectivityTimer;
+        private bool _isCurrentlyOffline = false;
+
         public SalesView(UserSession currentUser)
         {
             InitializeComponent();
@@ -103,6 +106,12 @@ namespace PhungLocCoffee_POS.Views
 
             LoadSampleData();
             UpdatePendingOfflineCount();
+
+            // Tự động kiểm tra kết nối mỗi 5 giây
+            _connectivityTimer = new System.Windows.Threading.DispatcherTimer();
+            _connectivityTimer.Interval = TimeSpan.FromSeconds(5);
+            _connectivityTimer.Tick += (s, e) => CheckServerConnection();
+            _connectivityTimer.Start();
         }
 
         private void ExecuteSelectCategory(CategoryItem? category)
@@ -223,46 +232,18 @@ namespace PhungLocCoffee_POS.Views
             }
             else
             {
-                // Thử load file qrrepo.png từ nhiều vị trí khác nhau
                 try
                 {
-                    string baseDir = AppDomain.CurrentDomain.BaseDirectory;
-                    string[] possiblePaths = new string[]
-                    {
-                        System.IO.Path.Combine(baseDir, "qrrepo.png"),                                      // bin\Debug\net8.0-windows\
-                        System.IO.Path.Combine(baseDir, "..", "..", "..", "qrrepo.png"),                   // Project Root (khi chạy từ bin\Debug\net8.0-windows)
-                        System.IO.Path.Combine(Environment.CurrentDirectory, "qrrepo.png")                 // Thư mục làm việc hiện tại
-                    };
-
-                    string finalPath = string.Empty;
-                    foreach (var path in possiblePaths)
-                    {
-                        if (System.IO.File.Exists(path))
-                        {
-                            finalPath = path;
-                            break;
-                        }
-                    }
-
-                    if (!string.IsNullOrEmpty(finalPath))
-                    {
-                        var bitmap = new BitmapImage();
-                        bitmap.BeginInit();
-                        bitmap.UriSource = new Uri(finalPath);
-                        bitmap.CacheOption = BitmapCacheOption.OnLoad;
-                        bitmap.EndInit();
-                        QrCodeImage.Source = bitmap;
-                    }
-                    else
-                    {
-                        MessageBox.Show($"Chưa có ảnh QR.\nVui lòng thêm file qrrepo.png vào:\n{possiblePaths[1]}", "Thông báo", MessageBoxButton.OK, MessageBoxImage.Warning);
-                        QrPopup.IsOpen = false;
-                        return;
-                    }
+                    var bitmap = new BitmapImage();
+                    bitmap.BeginInit();
+                    bitmap.UriSource = new Uri("pack://application:,,,/Assets/qrrepo.png");
+                    bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                    bitmap.EndInit();
+                    QrCodeImage.Source = bitmap;
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show("Lỗi load ảnh QR: " + ex.Message);
+                    MessageBox.Show("Không thể tải ảnh QR từ Assets/qrrepo.png: " + ex.Message, "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
                     QrPopup.IsOpen = false;
                     return;
                 }
@@ -283,6 +264,12 @@ namespace PhungLocCoffee_POS.Views
         {
             try
             {
+                // ÉP BUỘC CHẾ ĐỘ OFFLINE: Nếu timer đã phát hiện mất kết nối, không thử kết nối online nữa
+                if (_isCurrentlyOffline)
+                {
+                    throw new Exception("Mất kết nối tới trung tâm (Hệ thống đã chuyển sang chế độ Offline)");
+                }
+
                 string connStr = ConfigurationManager
                     .ConnectionStrings["DefaultConnection"]
                     .ConnectionString;
@@ -766,22 +753,33 @@ namespace PhungLocCoffee_POS.Views
 
         private bool CheckServerConnection()
         {
+            // 1. Kiểm tra vật lý: Nếu máy tính không có mạng, báo offline ngay lập tức
+            if (!System.Net.NetworkInformation.NetworkInterface.GetIsNetworkAvailable())
+            {
+                OfflineBanner.Visibility = Visibility.Visible;
+                _isCurrentlyOffline = true;
+                return false;
+            }
+
             try
             {
-                using (SqlConnection conn = new SqlConnection(
-                    ConfigurationManager.ConnectionStrings["DefaultConnection"].ConnectionString))
+                var builder = new SqlConnectionStringBuilder(ConfigurationManager.ConnectionStrings["DefaultConnection"].ConnectionString);
+                
+                // ÉP BUỘC TIMEOUT CỰC THẤP (1 giây) ĐỂ DEMO TỨC THÌ
+                builder.ConnectTimeout = 1; 
+
+                using (SqlConnection conn = new SqlConnection(builder.ConnectionString))
                 {
                     conn.Open();
-
                     OfflineBanner.Visibility = Visibility.Collapsed;
-
+                    _isCurrentlyOffline = false;
                     return true;
                 }
             }
             catch
             {
                 OfflineBanner.Visibility = Visibility.Visible;
-
+                _isCurrentlyOffline = true;
                 return false;
             }
         }
@@ -810,140 +808,128 @@ namespace PhungLocCoffee_POS.Views
             }
         }
 
-        public void TrySyncOfflineOrders()
+        public async System.Threading.Tasks.Task TrySyncOfflineOrders()
         {
             if (!CheckServerConnection())
                 return;
 
+            // Lấy danh sách đơn chưa đồng bộ
+            var pendingOrders = new System.Collections.Generic.List<dynamic>();
             using (var sqliteConn = new SqliteConnection(LocalDatabaseHelper.GetConnectionString()))
             {
                 sqliteConn.Open();
-
                 string getOrdersSql = "SELECT * FROM LocalOrders WHERE IsSynced = 0";
-
                 using (var cmd = new SqliteCommand(getOrdersSql, sqliteConn))
                 using (var reader = cmd.ExecuteReader())
                 {
                     while (reader.Read())
                     {
-                        string localOrderId = reader["LocalOrderID"]?.ToString() ?? string.Empty;
-
-                        try
+                        pendingOrders.Add(new
                         {
-                            using (SqlConnection sqlConn = new SqlConnection(ConfigurationManager.ConnectionStrings["DefaultConnection"].ConnectionString))
-                            {
-                                sqlConn.Open();
-
-                                Guid newOrderId = Guid.NewGuid();
-
-                                string insertSql = @"
-                                INSERT INTO Orders
-                                (
-                                    OrderID,
-                                    BranchID,
-                                    UserID,
-                                    TotalAmount,
-                                    DiscountAmount,
-                                    PaymentMethod,
-                                    CreatedAt,
-                                    OfflineID,
-                                    IsSynced
-                                )
-                                VALUES
-                                (
-                                    @OrderID,
-                                    @BranchID,
-                                    @UserID,
-                                    @TotalAmount,
-                                    @DiscountAmount,
-                                    @PaymentMethod,
-                                    @CreatedAt,
-                                    @OfflineID,
-                                    1
-                                );";
-
-                                using (SqlCommand insertCmd = new SqlCommand(insertSql, sqlConn))
-                                {
-                                    // Kiểm tra DBNull an toàn cho từng trường
-                                    insertCmd.Parameters.AddWithValue("@OrderID", newOrderId);
-                                    insertCmd.Parameters.AddWithValue("@BranchID", reader["BranchID"] != DBNull.Value ? Convert.ToInt32(reader["BranchID"]) : 0);
-                                    insertCmd.Parameters.AddWithValue("@UserID", reader["UserID"] != DBNull.Value ? Convert.ToInt32(reader["UserID"]) : 0);
-                                    insertCmd.Parameters.AddWithValue("@TotalAmount", reader["TotalAmount"] != DBNull.Value ? Convert.ToDouble(reader["TotalAmount"]) : 0.0);
-                                    insertCmd.Parameters.AddWithValue("@DiscountAmount", 0);
-                                    insertCmd.Parameters.AddWithValue("@PaymentMethod", reader["PaymentMethod"]?.ToString() ?? "");
-                                    insertCmd.Parameters.AddWithValue("@CreatedAt", reader["CreatedAt"]?.ToString() ?? DateTime.Now.ToString());
-                                    insertCmd.Parameters.AddWithValue("@OfflineID", localOrderId);
-
-                                    insertCmd.ExecuteNonQuery();
-                                }
-
-                                // Sync Chi tiết đơn hàng
-                                string getDetailsSql = "SELECT ProductID, Quantity, UnitPrice FROM LocalOrderDetails WHERE LocalOrderID = @LocalOrderID";
-                                using (SqliteCommand detailCmd = new SqliteCommand(getDetailsSql, sqliteConn))
-                                {
-                                    detailCmd.Parameters.AddWithValue("@LocalOrderID", localOrderId);
-                                    using (SqliteDataReader detailReader = detailCmd.ExecuteReader())
-                                    {
-                                        while (detailReader.Read())
-                                        {
-                                            string insertDetailSql = @"
-                                        INSERT INTO OrderDetails (OrderID, ProductID, Quantity, UnitPrice)
-                                        VALUES (@OrderID, @ProductID, @Quantity, @UnitPrice)";
-
-                                            using (SqlCommand insertDetailCmd = new SqlCommand(insertDetailSql, sqlConn))
-                                            {
-                                                insertDetailCmd.Parameters.AddWithValue("@OrderID", newOrderId);
-                                                insertDetailCmd.Parameters.AddWithValue("@ProductID", detailReader["ProductID"] != DBNull.Value ? Convert.ToInt32(detailReader["ProductID"]) : 0);
-                                                insertDetailCmd.Parameters.AddWithValue("@Quantity", detailReader["Quantity"] != DBNull.Value ? Convert.ToInt32(detailReader["Quantity"]) : 0);
-                                                insertDetailCmd.Parameters.AddWithValue("@UnitPrice", detailReader["UnitPrice"] != DBNull.Value ? Convert.ToDouble(detailReader["UnitPrice"]) : 0.0);
-
-                                                insertDetailCmd.ExecuteNonQuery();
-
-                                                // Cập nhật kho
-                                                string updateInventorySql = @"
-                                            UPDATE i SET i.CurrentQuantity = i.CurrentQuantity - (r.Quantity * @SoldQuantity)
-                                            FROM Inventory i
-                                            INNER JOIN Recipes r ON i.IngredientID = r.IngredientID
-                                            WHERE i.BranchID = @BranchID AND r.ProductID = @ProductID";
-
-                                                using (SqlCommand updateInventoryCmd = new SqlCommand(updateInventorySql, sqlConn))
-                                                {
-                                                    updateInventoryCmd.Parameters.AddWithValue("@SoldQuantity", Convert.ToInt32(detailReader["Quantity"]));
-                                                    updateInventoryCmd.Parameters.AddWithValue("@BranchID", Convert.ToInt32(reader["BranchID"]));
-                                                    updateInventoryCmd.Parameters.AddWithValue("@ProductID", Convert.ToInt32(detailReader["ProductID"]));
-                                                    updateInventoryCmd.ExecuteNonQuery();
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-
-                                // Đánh dấu đã đồng bộ
-                                string updateSql = "UPDATE LocalOrders SET IsSynced = 1 WHERE LocalOrderID = @LocalOrderID";
-                                using (var updateCmd = new SqliteCommand(updateSql, sqliteConn))
-                                {
-                                    updateCmd.Parameters.AddWithValue("@LocalOrderID", localOrderId);
-                                    updateCmd.ExecuteNonQuery();
-                                }
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            MessageBox.Show(
-                                "Lỗi sync đơn offline:\n" + ex.Message,
-                                "Lỗi đồng bộ",
-                                MessageBoxButton.OK,
-                                MessageBoxImage.Error
-                            );
-                        }
+                            LocalOrderID = reader["LocalOrderID"]?.ToString(),
+                            BranchID = reader["BranchID"],
+                            UserID = reader["UserID"],
+                            TotalAmount = reader["TotalAmount"],
+                            PaymentMethod = reader["PaymentMethod"],
+                            CreatedAt = reader["CreatedAt"]
+                        });
                     }
                 }
             }
+
+            if (pendingOrders.Count == 0) return;
+
+            // Bắt đầu hiệu ứng đồng bộ
+            SyncOverlay.Visibility = Visibility.Visible;
+            SyncProgress.Maximum = pendingOrders.Count;
+            SyncProgress.Value = 0;
+
+            int successCount = 0;
+            for (int i = 0; i < pendingOrders.Count; i++)
+            {
+                var order = pendingOrders[i];
+                SyncStatusText.Text = $"Đang đồng bộ đơn hàng {i + 1}/{pendingOrders.Count}...";
+                SyncProgress.Value = i + 1;
+
+                // Giả lập độ trễ mạng để demo nhìn cho "ngầu"
+                await System.Threading.Tasks.Task.Delay(800);
+
+                try
+                {
+                    using (SqlConnection sqlConn = new SqlConnection(ConfigurationManager.ConnectionStrings["DefaultConnection"].ConnectionString))
+                    {
+                        await sqlConn.OpenAsync();
+                        Guid newOrderId = Guid.NewGuid();
+
+                        string insertSql = @"
+                        INSERT INTO Orders (OrderID, BranchID, UserID, TotalAmount, DiscountAmount, PaymentMethod, CreatedAt, OfflineID, IsSynced)
+                        VALUES (@OrderID, @BranchID, @UserID, @TotalAmount, 0, @PaymentMethod, @CreatedAt, @OfflineID, 1)";
+
+                        using (SqlCommand insertCmd = new SqlCommand(insertSql, sqlConn))
+                        {
+                            insertCmd.Parameters.AddWithValue("@OrderID", newOrderId);
+                            insertCmd.Parameters.AddWithValue("@BranchID", order.BranchID);
+                            insertCmd.Parameters.AddWithValue("@UserID", order.UserID);
+                            insertCmd.Parameters.AddWithValue("@TotalAmount", order.TotalAmount);
+                            insertCmd.Parameters.AddWithValue("@PaymentMethod", order.PaymentMethod);
+                            insertCmd.Parameters.AddWithValue("@CreatedAt", order.CreatedAt);
+                            insertCmd.Parameters.AddWithValue("@OfflineID", order.LocalOrderID);
+                            await insertCmd.ExecuteNonQueryAsync();
+                        }
+
+                        // Sync chi tiết
+                        using (var sqliteConn = new SqliteConnection(LocalDatabaseHelper.GetConnectionString()))
+                        {
+                            sqliteConn.Open();
+                            string getDetailsSql = "SELECT ProductID, Quantity, UnitPrice FROM LocalOrderDetails WHERE LocalOrderID = @LocalOrderID";
+                            using (SqliteCommand detailCmd = new SqliteCommand(getDetailsSql, sqliteConn))
+                            {
+                                detailCmd.Parameters.AddWithValue("@LocalOrderID", order.LocalOrderID);
+                                using (SqliteDataReader detailReader = detailCmd.ExecuteReader())
+                                {
+                                    while (detailReader.Read())
+                                    {
+                                        string insertDetailSql = "INSERT INTO OrderDetails (OrderID, ProductID, Quantity, UnitPrice) VALUES (@OrderID, @ProductID, @Quantity, @UnitPrice)";
+                                        using (SqlCommand insertDetailCmd = new SqlCommand(insertDetailSql, sqlConn))
+                                        {
+                                            insertDetailCmd.Parameters.AddWithValue("@OrderID", newOrderId);
+                                            insertDetailCmd.Parameters.AddWithValue("@ProductID", detailReader["ProductID"]);
+                                            insertDetailCmd.Parameters.AddWithValue("@Quantity", detailReader["Quantity"]);
+                                            insertDetailCmd.Parameters.AddWithValue("@UnitPrice", detailReader["UnitPrice"]);
+                                            await insertDetailCmd.ExecuteNonQueryAsync();
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Đánh dấu đã sync
+                            string updateSql = "UPDATE LocalOrders SET IsSynced = 1 WHERE LocalOrderID = @LocalOrderID";
+                            using (var updateCmd = new SqliteCommand(updateSql, sqliteConn))
+                            {
+                                updateCmd.Parameters.AddWithValue("@LocalOrderID", order.LocalOrderID);
+                                updateCmd.ExecuteNonQuery();
+                            }
+                        }
+                        successCount++;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    SyncStatusText.Text = $"Lỗi tại đơn {i + 1}: {ex.Message}";
+                    await System.Threading.Tasks.Task.Delay(2000);
+                }
+            }
+
+            SyncStatusText.Text = $"Đã đồng bộ thành công {successCount} đơn hàng!";
+            await System.Threading.Tasks.Task.Delay(1500);
+            SyncOverlay.Visibility = Visibility.Collapsed;
+            
+            UpdatePendingOfflineCount();
         }
 
-        public void TrySyncOfflineOrdersFromOutside()
+        public async System.Threading.Tasks.Task TrySyncOfflineOrdersFromOutside()
         {
-            TrySyncOfflineOrders();
+            await TrySyncOfflineOrders();
         }
     }
 
@@ -1093,4 +1079,6 @@ namespace PhungLocCoffee_POS.Views
         public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture) => throw new NotImplementedException();
     }
 }
+
+
 

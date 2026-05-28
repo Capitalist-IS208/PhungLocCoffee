@@ -60,15 +60,15 @@
                 </StackPanel>
             </Border>
 
-            <!-- Thành viên mới -->
+            <!-- Hệ thống chi nhánh -->
             <Border Background="White" CornerRadius="20" Margin="0" Padding="20">
                 <Border.Effect>
                     <DropShadowEffect BlurRadius="15" ShadowDepth="2" Opacity="0.03"/>
                 </Border.Effect>
                 <StackPanel>
-                    <icon:PackIconMaterial Kind="AccountPlusOutline" Foreground="#D7A16A" Width="24" Height="24"/>
-                    <TextBlock Text="Thành viên mới" Foreground="#A0AEC0" FontSize="13" Margin="0,15,0,5" FontWeight="Medium"/>
-                    <TextBlock Text="{Binding NewMembersToday, StringFormat={}{0:+0;-#}}" Foreground="#2D3748" FontSize="22" FontWeight="Black"/>
+                    <icon:PackIconMaterial Kind="HomeCityOutline" Foreground="#D7A16A" Width="24" Height="24"/>
+                    <TextBlock Text="Hệ thống chi nhánh" Foreground="#A0AEC0" FontSize="13" Margin="0,15,0,5" FontWeight="Medium"/>
+                    <TextBlock Text="{Binding TotalBranches, StringFormat={}{0} chi nhánh}" Foreground="#2D3748" FontSize="22" FontWeight="Black"/>
                 </StackPanel>
             </Border>
         </UniformGrid>
